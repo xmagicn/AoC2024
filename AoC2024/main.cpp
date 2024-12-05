@@ -23,34 +23,34 @@ int Year24Day1Part1( const std::string& Filename )
 	int CurrentSum = 0;
 	int CurrentMax = 0;
 
+	std::vector<int32_t> LeftVec, RightVec;
 
 	while ( myfile.good() )
 	{
 		char line[256];
-		myfile.getline( line, 256 );
-		std::string Line( line );
-		std::string FirstDigit, LastDigit;
-
-		for (auto& Char : Line)
-		{
-			if (isdigit(Char))
-			{
-				if (FirstDigit.empty())
-				{
-					FirstDigit = Char;
-				}
-				LastDigit = Char;
-			}
-		}
-
-		std::string LineSum = FirstDigit + LastDigit;
-		if (!LineSum.empty())
-		{
-			CurrentSum += std::stoi(LineSum);
-		}
+		myfile.getline( line, 256, ' ');
+		LeftVec.push_back(std::stoi(line));
+		myfile.getline(line, 256);
+		RightVec.push_back(std::stoi(line));
 	}
 
 	myfile.close();
+
+	if (LeftVec.size() != RightVec.size())
+	{
+		// Shouldn't happen!
+		return -1;
+	}
+
+	std::sort(LeftVec.begin(), LeftVec.end());
+	std::sort(RightVec.begin(), RightVec.end());
+
+	size_t ListSize = LeftVec.size();
+
+	for (size_t Idx = 0; Idx < ListSize; ++Idx)
+	{
+		CurrentSum += std::abs(LeftVec[Idx] - RightVec[Idx]);
+	}
 
 	return CurrentSum;
 }
@@ -63,16 +63,37 @@ int Year24Day1Part2( const std::string& Filename )
 	int CurrentSum = 0;
 	int CurrentMax = 0;
 
+	std::vector<int32_t> LeftVec;
+	std::map<int32_t, int32_t> RightMap;
+
 	while (myfile.good())
 	{
 		char line[256];
+		myfile.getline(line, 256, ' ');
+		LeftVec.push_back(std::stoi(line));
 		myfile.getline(line, 256);
-		std::string Line(line);
-		std::string FirstDigit, LastDigit;
-
+		int32_t RightKey = std::stoi(line);
+		auto RightIt = RightMap.find(RightKey);
+		if (RightIt != RightMap.end())
+		{
+			RightIt->second++;
+		}
+		else
+		{
+			RightMap.insert(std::make_pair(RightKey, 1));
+		}
 	}
 
 	myfile.close();
+
+	for (int32_t Val : LeftVec)
+	{
+		auto RightIt = RightMap.find(Val);
+		if (RightIt != RightMap.end())
+		{
+			CurrentSum += RightIt->second * Val;
+		}
+	}
 
 	return CurrentSum;
 }

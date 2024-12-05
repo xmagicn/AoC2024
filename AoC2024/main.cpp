@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <functional>
 
+#include "HelperFunctions.h"
+
 // Unused Param
 #pragma warning( disable : 4100 )
 
@@ -98,27 +100,243 @@ int Year24Day1Part2( const std::string& Filename )
 	return CurrentSum;
 }
 
+bool AreEntriesValid(int32_t A, int32_t B, int32_t SignVal, int32_t MinDiff, int32_t MaxDiff)
+{
+	int32_t Diff = A - B;
+	return (
+		SignVal * Diff >= 0
+		&& std::abs(Diff) >= MinDiff
+		&& std::abs(Diff) <= MaxDiff
+		);
+}
+
+// UnsafeIdx can be -1 to allow for a single error 
+bool IsReportSafe(const std::vector<int32_t>& Report, int32_t MinDiff, int32_t MaxDiff, int32_t& UnsafeIdx)
+{
+	int32_t Prev = 0; // Always multiply against Prev to see if we change signs
+	bool bSafe = true;
+
+	for (size_t Idx = 1; Idx < Report.size(); ++Idx)
+	{
+		int32_t A = Report[Idx - 1];
+		int32_t B = Report[Idx];
+
+		int32_t Diff = A - B;
+		if (AreEntriesValid(A, B, Prev, MinDiff, MaxDiff))
+		{
+			Prev = A - B;
+			continue;
+		}
+
+		if (UnsafeIdx < 0)
+		{
+			// End of Report. Discard final entry
+			if (Idx == Report.size() - 1)
+			{
+				UnsafeIdx = Idx;
+				continue;
+			}
+
+			if (A == B)
+			{
+				UnsafeIdx = Idx - 1;
+				continue;
+			}
+
+			bool bZA = Idx - 1 > 0 ? AreEntriesValid(Report[Idx - 2], A, Prev, MinDiff, MaxDiff) : true;
+			bool bZB = Idx - 1 > 0 ? AreEntriesValid(Report[Idx - 2], B, Prev, MinDiff, MaxDiff) : true;
+			bool bAC = Idx < Report.size() - 1 ? AreEntriesValid(A, Report[Idx + 1], Prev, MinDiff, MaxDiff) : true;
+			bool bBC = Idx < Report.size() - 1 ? AreEntriesValid(B, Report[Idx + 1], Prev, MinDiff, MaxDiff) : true;
+
+			//bool bBSafe = Idx - 1 > 0 ? AreEntriesValid(Report[Idx - 2], B, Prev, MinDiff, MaxDiff) : true;
+			//bool bASafe = Idx < Report.size() - 1 ? AreEntriesValid(A, Report[Idx + 1], Prev, MinDiff, MaxDiff) : true;
+
+			if (bZB && bBC)
+			{
+				UnsafeIdx = Idx - 1;
+				if (Idx > 1) { ++Idx; }
+				continue;
+			}
+
+			if (bZA && bAC)
+			{
+				UnsafeIdx = Idx;
+				if (Idx > 1) { ++Idx; }
+				continue;
+			}
+		}
+
+		bSafe = false;
+		break;
+	}
+
+	return bSafe;
+}
+
+int Year24Day2Part1(const std::string& Filename)
+{
+	std::ifstream myfile;
+	myfile.open(Filename);
+
+	int CurrentSum = 0;
+	std::vector<std::vector<int32_t>> Reports;
+
+	while (myfile.good())
+	{
+		char line[256];
+		myfile.getline(line, 256);
+
+		Reports.push_back(AoCHelpers::SplitStringToIntArray(line));
+	}
+
+	myfile.close();
+
+	const int32_t MinDiff = 1;
+	const int32_t MaxDiff = 3;
+	for (const std::vector<int32_t>& Report : Reports)
+	{
+		int32_t Prev = 0; // Always multiply against Prev to see if we change signs
+		bool bSafe = true;
+
+		for (size_t Idx = 1; Idx < Report.size(); ++Idx)
+		{
+			int32_t A = Report[Idx - 1];
+			int32_t B = Report[Idx];
+
+			if (AreEntriesValid(A, B, Prev, MinDiff, MaxDiff))
+			{
+				Prev = A - B;
+				continue;
+			}
+			bSafe = false;
+			break;
+		}
+
+		if (bSafe)
+		{
+			++CurrentSum;
+		}
+
+		//AoCHelpers::PrintIntArray(Report);
+		//std::cout << (bSafe ? " Safe" : "") << std::endl;
+
+	}
+
+	return CurrentSum;
+}
+
+int Year24Day2Part2(const std::string& Filename)
+{
+	std::ifstream myfile;
+	myfile.open(Filename);
+
+	int CurrentSum = 0;
+	std::vector<std::vector<int32_t>> Reports;
+
+	while (myfile.good())
+	{
+		char line[256];
+		myfile.getline(line, 256);
+
+		Reports.push_back(AoCHelpers::SplitStringToIntArray(line));
+	}
+
+	myfile.close();
+
+	const int32_t MinDiff = 1;
+	const int32_t MaxDiff = 3;
+	int32_t Ct = 0;
+	for (const std::vector<int32_t>& Report : Reports)
+	//std::vector<int32_t> Report({ 50, 56, 58, 55, 52 });
+	{
+		int32_t UnsafeIdx = -1;
+		bool bSafe = IsReportSafe(Report, MinDiff, MaxDiff, UnsafeIdx);
+
+		if (!bSafe)
+		{
+			for (size_t Idx = 0; Idx < Report.size() - 1; ++Idx)
+			{
+				UnsafeIdx = Idx;
+				std::vector<int32_t> EditedReport(Report);
+				EditedReport.erase(EditedReport.begin() + UnsafeIdx, EditedReport.begin() + UnsafeIdx + 1);
+				bSafe = IsReportSafe(EditedReport, MinDiff, MaxDiff, UnsafeIdx);
+				if (bSafe)
+				{
+					break;
+				}
+			}
+
+			if (!bSafe)
+			{
+				UnsafeIdx = Report.size() - 1;
+				std::vector<int32_t> EditedReport(Report.begin(), Report.end() - 1);
+				bSafe = IsReportSafe(EditedReport, MinDiff, MaxDiff, UnsafeIdx);
+			}
+		}
+
+		if (bSafe)
+		{
+			CurrentSum++;
+			//std::cout << Ct << std::endl;
+		}
+		Ct++;
+
+		/*
+		int32_t UnsafeIdx = -1;
+		bool bSafe = IsReportSafe(Report, MinDiff, MaxDiff, UnsafeIdx);
+
+		if (!bSafe)
+		{
+			UnsafeIdx = 0;
+			bSafe = IsReportSafe(std::vector<int32_t>(Report.begin() + 1, Report.end()), MinDiff, MaxDiff, UnsafeIdx);
+			if (!bSafe)
+			{
+				std::vector<int32_t> LastTry( Report );
+				LastTry.erase(LastTry.begin() + 1, LastTry.begin() + 2);
+				bSafe = IsReportSafe(LastTry, MinDiff, MaxDiff, UnsafeIdx);
+			}
+		}
+
+		if (bSafe)
+		{
+			++CurrentSum;
+		}
+
+		if (!bSafe)
+		//if (Report[0] == Report[1] && bSafe)
+		{
+			AoCHelpers::PrintIntArray(Report);
+			std::cout << (bSafe ? " Safe, " : ", ") << "Unsafe Idx: " << UnsafeIdx << std::endl;
+		}
+		*/
+	}
+
+	return CurrentSum;
+}
+
 int main()
 {
+	/*
 	std::string Day1Sample( "..\\Input\\Day1Sample.txt" );
 	std::string Day1Input("..\\Input\\Day1Input.txt" );
 	std::cout << "Day1Part1Sample: " << Year24Day1Part1( Day1Sample ) << std::endl;
 	std::cout << "Day1Part1: " << Year24Day1Part1(Day1Input) << std::endl;
 	std::cout << "Day1Part2Sample: " << Year24Day1Part2( Day1Sample ) << std::endl;
 	std::cout << "Day1Part2: " << Year24Day1Part2( Day1Input ) << std::endl;
+	*/
+
+
+	std::string Day2Sample( "..\\Input\\Day2Sample.txt" );
+	std::string Day2EdgeCases( "..\\Input\\Day2EdgeCases.txt" );
+	std::string Day2Input( "..\\Input\\Day2Input.txt" );
+	std::cout << "Day2Part1Sample: " << Year24Day2Part1( Day2Sample ) << std::endl;
+	std::cout << "Day2Part1: " << Year24Day2Part1( Day2Input ) << std::endl;
+	std::cout << "Day2Part2Sample: " << Year24Day2Part2( Day2Sample ) << std::endl;
+	std::cout << "Day2Part2EdgeCases: " << Year24Day2Part2(Day2EdgeCases) << std::endl;
+	std::cout << "Day2Part2: " << Year24Day2Part2( Day2Input ) << std::endl;
 
 
 	/*
-
-	std::string Day2Sample( "..\\Input\\Day2Sample.txt" );
-	std::string Day2Input( "..\\Input\\Day2Input.txt" );
-	std::cout << "Day2Part1Sample: " << Year23Day2Part1( Day2Sample ) << std::endl;
-	std::cout << "Day2Part1: " << Year23Day2Part1( Day2Input ) << std::endl;
-	std::cout << "Day2Part2Sample: " << Year23Day2Part2( Day2Sample ) << std::endl;
-	std::cout << "Day2Part2: " << Year23Day2Part2( Day2Input ) << std::endl;
-
-
-
 	std::string Day3Sample( "..\\Input\\Day3Sample.txt" );
 	std::string Day3Input( "..\\Input\\Day3Input.txt" );
 	std::cout << "Day3Part1Sample: " << Year23Day3Part1( Day3Sample ) << std::endl;
